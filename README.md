@@ -1,8 +1,11 @@
+# README.md
+
+`markdown
 # Redrob Intelligent Candidate Ranking Pipeline
 
 > **Hackathon:** India Runs Data & AI Challenge — Candidate Ranking Track  
 > **Task:** Rank top 100 candidates from a 100,000-candidate pool for a senior AI/ML retrieval engineer role.  
-> **Approach:** 5-stage offline CPU-only pipeline using a LightGBM regressor trained via teacher distillation + deterministic reasoning + optional SLM rewrite.
+> **Approach:** 4-stage offline CPU-only pipeline using a LightGBM regressor trained via teacher distillation + Combinatorial Semantic Generation (Zero-Hallucination Engine) .
 
 ---
 
@@ -64,24 +67,6 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Step 4: Install llama-cpp-python (SLM Engine)
-
-> **CPU-only (works on any machine):**
-```powershell
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
-
-> **With NVIDIA GPU (optional, ~10x faster for SLM stage):**
-```powershell
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
-```
-
-### Step 5: Download the SLM Model (One-Time)
-```powershell
-python setup_model.py
-```
-Downloads `Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` (~986 MB) into the `models/` folder. Resumable if interrupted.
-
 ---
 
 ## Installation — macOS
@@ -101,23 +86,6 @@ source venv/bin/activate
 ### Step 3: Install Core Dependencies
 ```bash
 pip install -r requirements.txt
-```
-
-### Step 4: Install llama-cpp-python
-
-> **Apple Silicon (M1/M2/M3) — Metal GPU acceleration:**
-```bash
-CMAKE_ARGS="-DLLAMA_METAL=on" pip install llama-cpp-python
-```
-
-> **Intel Mac — CPU only:**
-```bash
-pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
-
-### Step 5: Download the SLM Model (One-Time)
-```bash
-python setup_model.py
 ```
 
 ---
@@ -170,28 +138,7 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python
 ```
 
-### Step 6: Download the SLM Model (One-Time)
-```bash
-python setup_model.py
-```
-
 ---
-
-## One-time Model Download
-
-The SLM model (`Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`) is approximately **986 MB** and needs to be downloaded once before running the full pipeline.
-
-```bash
-python setup_model.py
-```
-
-**What it does:**
-- Checks for 2 GB free disk space
-- Downloads the GGUF quantized model from HuggingFace
-- Saves it to `models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`
-- Download is resumable if interrupted
-
-> **Note:** If you prefer to skip the SLM rewrite stage (e.g., for testing), you can use `--no-rewrite` flag and skip this step entirely.
 
 ---
 
@@ -204,12 +151,12 @@ python run_pipeline.py \
   --ranker regressor_no_prescore.pkl
 ```
 
-### Skip SLM Rewrite (Faster, uses deterministic reasoning)
+### Direct Generation (uses Combinatorial Semantic Generation (Zero-Hallucination Engine))
 ```bash
 python run_pipeline.py \
   --candidates candidates.jsonl \
   --ranker regressor_no_prescore.pkl \
-  --no-rewrite
+  
 ```
 
 ### Resume from a Specific Stage (if pipeline was interrupted)
@@ -232,7 +179,7 @@ python run_pipeline.py \
 |---|---|---|
 | Stage 1 | Hard filter + prescore (100k → 22k) | ~17 seconds |
 | Stage 2 | LightGBM regression (22k → top 100) | ~4.6 seconds |
-| Stage 3 | Deterministic reasoning (top 100) | < 0.1 seconds |
+| Stage 3 | Combinatorial Semantic Generation (top 100) | < 0.1 seconds |
 | Stage 4 | SLM rewrite — Qwen2.5-1.5B (top 100) | ~2–4 minutes (optional) |
 | Stage 5 | Write submission.csv | < 0.1 seconds |
 | **Total (without SLM)** | | **~31 seconds** |
@@ -264,7 +211,7 @@ Submission is valid.
 | `--filter-top-k` | `22000` | Number of candidates after Stage 1 |
 | `--lgbm-top-k` | `15000` | Number of candidates fed to LightGBM |
 | `--top-final` | `100` | Final candidates in submission |
-| `--no-rewrite` | False | Skip SLM rewrite (Stage 4) |
+| `` | False | Skip SLM rewrite (Stage 4) |
 | `--start-stage` | `1` | Resume pipeline from a specific stage |
 | `--threads` | `auto` | CPU threads for LLM inference |
 | `--temperature` | `0.35` | SLM sampling temperature |
@@ -277,7 +224,7 @@ Submission is valid.
 github_repo/
 ├── run_pipeline.py                    # Main orchestrator — run this
 ├── filter_candidates.py               # Stage 1: Hard filter + feature extraction
-├── fix_reasoning.py                   # Stage 3: Deterministic reasoning builder
+├── fix_reasoning.py                   # Stage 3: Combinatorial Semantic Generation builder
 ├── rewrite_reasoning.py               # Stage 4: Qwen2.5 SLM rewrite engine
 ├── score_candidates.py                # Stage 3.5: Composite scoring
 ├── setup_model.py                     # One-time model downloader
@@ -299,9 +246,9 @@ github_repo/
 ## Troubleshooting
 
 ### `OSError: [WinError -1073741795] Windows Error 0xc000001d`
-Your CPU does not support AVX2 instructions required by `llama-cpp-python`. Use the `--no-rewrite` flag to skip Stage 4:
+Your CPU does not support AVX2 instructions required by `llama-cpp-python`. Use the `` flag to skip Stage 4:
 ```bash
-python run_pipeline.py --candidates candidates.jsonl --ranker regressor_no_prescore.pkl --no-rewrite
+python run_pipeline.py --candidates candidates.jsonl --ranker regressor_no_prescore.pkl 
 ```
 
 ### `ModuleNotFoundError: No module named 'lightgbm'`
@@ -342,3 +289,5 @@ python run_pipeline.py --candidates candidates.jsonl --ranker regressor_no_presc
 
 *Pipeline runtime: ~31 seconds (CPU-only, without SLM) | ~4 minutes (with SLM rewrite)*  
 *Peak RAM: ~1.65 GB | Disk footprint: ~1.54 GB*
+
+`
