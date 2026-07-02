@@ -1,3 +1,6 @@
+# run_pipeline.py
+
+`python
 #!/usr/bin/env python3
 """
 run_pipeline.py - Redrob Intelligent Candidate Ranking Pipeline
@@ -506,26 +509,16 @@ def main():
     g = parser.add_argument_group("Stage control")
     g.add_argument("--start-stage", type=int, default=1, choices=[1,2,3,4,5],
         help="Start from stage N (1=filter, 2=lgbm, 3=reasoning, 4=slm, 5=csv)")
-    g.add_argument("--no-rewrite", action="store_true",
-        help="Skip Stage 4 SLM rewrite, go straight to submission.csv from deterministic reasoning")
-
     g = parser.add_argument_group("Intermediate paths")
     g.add_argument("--filtered",    default="filtered_22k.jsonl")
     g.add_argument("--lgbm-out",    default="lgbm_top15k.jsonl")
     g.add_argument("--reasoned-out",default="top100_reasoned.jsonl")
     g.add_argument("--submission",  default="submission.csv")
-    g.add_argument("--model",
-        default=str(Path(__file__).parent / "models" / "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"),
-        help="Path to Qwen2.5 GGUF model (default: models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf)")
 
     g = parser.add_argument_group("Top-K params")
     g.add_argument("--filter-top-k",  type=int, default=22000)
     g.add_argument("--lgbm-top-k",    type=int, default=15000)
     g.add_argument("--top-final",     type=int, default=100)
-
-    g = parser.add_argument_group("SLM settings")
-    g.add_argument("--temperature", type=float, default=0.6)
-    g.add_argument("--threads",     type=int,   default=None)
 
     g = parser.add_argument_group("Misc")
     g.add_argument("--report",    action="store_true", help="Write Stage 1 filter report")
@@ -548,7 +541,6 @@ def main():
         "lgbm_out":     args.lgbm_out,
         "reasoned_out": args.reasoned_out,
         "submission":   args.submission,
-        "model":        args.model,
     }
 
     print("""
@@ -582,8 +574,7 @@ def main():
     print(f"    filter_top_k:   {args.filter_top_k:,}")
     print(f"    lgbm_top_k:     {args.lgbm_top_k:,}")
     print(f"    top_final:      {args.top_final}")
-    print(f"    no_rewrite:     {args.no_rewrite}")
-    print(f"    model:          {args.model}  ({'EXISTS' if os.path.exists(args.model) else 'run setup_model.py'})")
+
     print()
 
     monitor     = ResourceMonitor()
@@ -615,18 +606,8 @@ def main():
             args.lgbm_out, args.reasoned_out, args.submission, args.top_final, monitor
         ))
 
-        # STAGE 4 - SLM rewrite (updates submission.csv with natural language)
-        if not args.no_rewrite and args.start_stage <= 4:
-            result = stage4_slm_rewrite(
-                args.reasoned_out, args.submission,
-                args.model, args.temperature, args.threads, monitor
-            )
-            stage_stats.append(result)
-            if result is None:
-                log("SLM skipped -- submission.csv already written by Stage 3.5")
-        else:
-            # STAGE 5 - write final submission CSV from reasoned JSONL
-            stage_stats.append(stage5_submission(args.reasoned_out, args.submission, args.top_final, monitor))
+        # STAGE 4 - write final submission CSV from reasoned JSONL (previously Stage 5)
+        stage_stats.append(stage5_submission(args.reasoned_out, args.submission, args.top_final, monitor))
 
     finally:
         monitor.stop()
@@ -638,3 +619,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
