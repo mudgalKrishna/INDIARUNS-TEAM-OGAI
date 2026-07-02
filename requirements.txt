@@ -1,0 +1,44 @@
+# ============================================================
+# Redrob Intelligent Candidate Ranking Pipeline
+# requirements.txt
+# ============================================================
+# Install: pip install -r requirements.txt
+#
+# After installing, run ONCE to download the SLM model:
+#   py setup_model.py
+#
+# Then run the full pipeline:
+#   py run_pipeline.py --candidates candidates.jsonl --ranker ranker.pkl
+# ============================================================
+
+# ── Core numerical / ML ──────────────────────────────────────
+numpy>=1.26.0
+lightgbm>=4.0.0
+
+# ── JSON / data handling ─────────────────────────────────────
+# (json, re, csv, pathlib, pickle — all standard library, no extra install)
+
+# ── Resource monitoring ──────────────────────────────────────
+psutil>=5.9.0
+
+# ── HTTP (only used by teacher_scoring.py / vLLM teacher route) ──
+aiohttp>=3.9.0
+
+# ── SLM offline inference (llama-cpp-python) ────────────────
+# CPU-only build (works on any machine, no CUDA needed):
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+#
+# CUDA 12.1 build (if you have an NVIDIA GPU — ~10x faster):
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+#
+# NOTE: llama-cpp-python is NOT listed here because the install
+# command differs by hardware. Run one of the above manually.
+
+# ── One-time model download helper (setup_model.py) ─────────
+# huggingface_hub gives you resumable downloads.
+# If unavailable, setup_model.py falls back to urllib (built-in).
+huggingface_hub>=0.22.0
+
+# ── Regression / Tuning (train_lightgbm_regressor.py) ────────
+scikit-learn>=1.3.0
+optuna>=3.6.0  # Optional: for hyperparameter tuning
